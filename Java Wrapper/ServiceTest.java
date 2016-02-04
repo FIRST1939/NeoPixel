@@ -40,12 +40,16 @@ public class ServiceTest {
 
             // and call the health-check service
 
-            try {
-                serial.write('\n');
-            } catch(IllegalStateException ex){
-                ex.printStackTrace();
-                System.exit(1);
-            } // health check call try-catch
+            for (int i = 0; i < 3; i++) {
+
+                try {
+                    serial.write('\n');
+                } catch(IllegalStateException ex){
+                    ex.printStackTrace();
+                    System.exit(1);
+                } // health check call try-catch
+
+            }
 
         } catch(SerialPortException ex) {
 
