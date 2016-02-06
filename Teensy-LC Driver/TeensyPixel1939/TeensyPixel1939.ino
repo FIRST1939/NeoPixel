@@ -184,7 +184,7 @@ void setup() {
     HWSERIAL.begin(38400);
     pixels.setBrightness(255);
     pixels.begin();
-    clearPixels();
+    noComm();
 }
 
 /*
@@ -217,7 +217,6 @@ void readSerialString(char* buffer) {
  */
 
 void parseNums() {
-    Serial.println("parseNums()");
     int i = 0;
     int num = 0;
     numArgs = 0;
@@ -235,10 +234,11 @@ void parseNums() {
  */
 
 void healthCheck() {
+    clearPixels();
     HWSERIAL.print("OK: ");
     HWSERIAL.print("TeensyPixel1939");
     HWSERIAL.print(",");
-    HWSERIAL.print("0.0.1");
+    HWSERIAL.print("0.1.0");
     HWSERIAL.print(",");
     HWSERIAL.print(String(pixels.numPixels()));
     HWSERIAL.println();
@@ -284,6 +284,21 @@ void clearPixels() {
     }
     pixels.show();
     HWSERIAL.println("Ok: All pixels off");
+}
+
+/*
+ * noComm() - Communications not yet initiated
+ */
+
+void noComm() {
+    for (int i = 0; i < pixels.numPixels(); i++) {
+        pixels.setPixelColor(i, 255, 0, 0);
+        ledValues[i][0] = 255;
+        ledValues[i][1] = 255;
+        ledValues[i][2] = 0;
+    }
+    setBrightnessLevel(20);
+    pixels.show();
 }
 
 /*
@@ -474,7 +489,6 @@ void badCommand(int errNum, const char* errMsg) {
  */
 
 void loop() {
-
     if (HWSERIAL.available() > 0) {
         readSerialString(cmdBuffer);
         parseNums();
