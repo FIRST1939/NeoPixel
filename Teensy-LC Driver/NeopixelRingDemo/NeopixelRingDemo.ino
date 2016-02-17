@@ -11,8 +11,8 @@
 // Implementation specific settings
 
 #define PIN        17  // Pin to use to talk to the NeoPixel Ring
-#define BRIGHTNESS 20  // Brightness level
-#define NUMPIXELS  12  // Number of pixels in ring
+#define BRIGHTNESS 255  // Brightness level
+#define NUMPIXELS  104  // Number of pixels in ring
 
 // Define our color patterns
 
@@ -53,9 +53,18 @@ void loop() {
     loopAround(COLOR_BLUE);
     loopAround(COLOR_WHITE);
     pulse(COLOR_RED);
-    pulse(COLOR_GREEN);
+pulse(COLOR_GREEN);
     pulse(COLOR_BLUE);
     pulse(COLOR_WHITE);
+//all_on(COLOR_WHITE);
+}
+
+void all_on(uint32_t color) {
+  for (int pixel = 0; pixel < NUMPIXELS; pixel++) {
+    pixels.setBrightness(BRIGHTNESS);
+    pixels.setPixelColor(pixel, color);
+  }
+  pixels.show();
 }
 
 // Reset all pixels in the ring to black (i.e. off)
@@ -72,7 +81,7 @@ void resetRing() {
 
 void rainbow() {
 
-    static int modeDelay = 100;
+    static int modeDelay = 25;
     static uint32_t color[] = {
         COLOR_RED,
         COLOR_ORANGE,
@@ -118,7 +127,7 @@ void fade(uint32_t color, int fade, int delayBy) {
 // Pulse the ring with a specified color
 
 void pulse(uint32_t color) {
-    static int modeDelay = 50;
+    static int modeDelay = 10;
     fade(color, FADE_IN, modeDelay);
     fade(color, FADE_OUT, modeDelay);
     resetRing();       
@@ -127,7 +136,7 @@ void pulse(uint32_t color) {
 // Loop around the ring once with a specified color
 
 void loopAround(uint32_t color) {
-    static int modeDelay = 100;
+    static int modeDelay = 10;
     for(uint32_t pixel = 0; pixel < NUMPIXELS; pixel++) {
         if (pixel > 0) pixels.setPixelColor(pixel - 1, COLOR_BLACK);
         pixels.setPixelColor(pixel, color);       
