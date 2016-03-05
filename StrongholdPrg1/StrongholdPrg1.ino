@@ -10,6 +10,17 @@
  * settings.
  */
 
+/*
+ * LED Schedule
+ * 
+ * 0-29 - starboard side
+ *      6-17 shield
+ * 30-47 - back
+ * 48-77 - port side
+ * 54-66 shield
+ * 78-103 - front bar
+ */
+
 // Include Adafruit's NeoPixel library
 
 #include <Adafruit_NeoPixel.h>
@@ -21,7 +32,7 @@
 #define SIGNAL2      2  // Pin used for last (most significant) command bit
 #define BUILTINLED  13  // Pin assigned to the built-in LED on the Teensy
 #define PIN         17  // Pin to use to talk to the NeoPixel Ring
-#define BRIGHTNESS 255  // Brightness level
+#define BRIGHTNESS  80  // Brightness level
 #define NUMPIXELS  104  // Number of pixels in ring
 
 // Define standard color patterns
