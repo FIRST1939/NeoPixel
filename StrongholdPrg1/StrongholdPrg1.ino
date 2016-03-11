@@ -62,6 +62,7 @@ Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN);
 int      command = 0;          // Current command (light program)
 bool     sPin1, sPin2, sPin3;  // Boolean values for pin settings
 uint32_t ledValues[NUMPIXELS]; // Local buffer echoing pixel color settings
+bool     flash;
 
 /*
  * Arduino set-up function (called once upon power-up and reset)
@@ -75,6 +76,8 @@ void setup() {
   pinMode(SIGNAL2,    INPUT);     
   pixels.setBrightness(BRIGHTNESS);
   pixels.begin();
+  setShield(COLOR_GREEN);
+  flash = false;
 }
 
 /*
@@ -128,29 +131,43 @@ void loop() {
   // Display the selected program
   
   switch (getCmd(sPin1, sPin2, sPin3)) {
-    case 0:
-      allOn(COLOR_PINK);
-      break;
-    case 1:
-      allOn(COLOR_RED);
-      break;
-    case 2:
-      allOn(COLOR_BLUE);
-      break;
-    case 3:
+    case 7: // Mode: 111 End Game (Green)
       allOn(COLOR_GREEN);
       break;
-    case 4:
-      allOn(COLOR_ORANGE);
+    case 6: // Mode 110; Red With Boulder (Red Flashing)
+      if (flash){
+        allOn(COLOR_RED);
+        flash = false;
+  }else{
+        allOn(COLOR_BLACK);
+        flash = true;
+  }
+      delay(100);
       break;
-    case 5:
+    case 5: // Mode 101 Blue With Boulder (Blue Flashing)
+      if (flash){
+        allOn(COLOR_BLUE);
+        flash = false;
+  } else {
+    allOn(COLOR_BLACK);
+    flash = true;
+  }
+  delay(100);
+      break;
+    case 4: // Mode 100 Red No Boulder (Red)
+      allOn(COLOR_RED);
+      break;
+    case 3: // Mode 011 Blue No Boulder (Blue)
+      allOn(COLOR_BLUE);
+      break;
+    case 2: // Mode 010 Auto (Yellow)
       allOn(COLOR_YELLOW);
       break;
-    case 6:
-      allOn(COLOR_VIOLET);
+    case 1: // Mode 001 Disabled (Rainbow)
+      allOn(COLOR_WHITE);
       break;
-    case 7:
-      pulse(COLOR_WHITE);
+    case 0: // Mode: Disconnected
+      allOn(COLOR_ORANGE);
       break;
   }
 }
@@ -170,12 +187,30 @@ void setAPixel(uint16_t pixel, uint32_t color, uint8_t level) {
 }
 
 /*
+ * setShield()
+ */
+
+void setShield(uint32_t color) {
+  for (int pixel = 6; pixel < 18; pixel++)
+    setAPixel(pixel, color, 255);
+  for (int pixel = 54; pixel < 66; pixel++)
+    setAPixel(pixel, color, 255);
+  pixels.show();
+
+}
+
+/*
  * allOn() - Sets all pixels to a specified color
  */
 
 void allOn(uint32_t color) {
-  for (int pixel = 0; pixel < NUMPIXELS; pixel++)
+  for (int pixel = 0; pixel < NUMPIXELS; pixel++) {
+    if (pixel > 5 && pixel < 18)
+      continue;
+    if (pixel > 53 && pixel < 66)
+      continue;
     setAPixel(pixel, color);
+  }
   pixels.show();
 }
 
@@ -236,8 +271,13 @@ void rainbow() {
 
 void fade(uint32_t color, int fade, int delayBy) {
     for (int level = (fade ? BRIGHTNESS : 0); (fade ? (level > 0) : (level < BRIGHTNESS)); level = level + (fade ? -1 : 1)) {
-        for(int pixel = 0; pixel < NUMPIXELS; pixel++)
+        for(int pixel = 0; pixel < NUMPIXELS; pixel++) {
+    if (pixel > 5 && pixel < 18)
+      continue;
+    if (pixel > 53 && pixel < 66)
+      continue;
           setAPixel(pixel, color, level);
+        }
         pixels.show();
         delay(delayBy);
     }
