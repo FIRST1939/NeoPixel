@@ -25,6 +25,10 @@
 
 #include <Adafruit_NeoPixel.h>
 
+// Debug mode (uncomment next line for debug mode)
+
+//#define DEBUG 1 
+
 // Implementation specific settings
 
 #define SIGNAL0      0  // Pin used for first (least significant) command bit
@@ -65,14 +69,31 @@ int      command = 0;          // Current command (light program)
 int      lastcmd = 0;          // Last command (used to recover from effects that impact all lights
 bool     sPin1, sPin2, sPin3;  // Boolean values for pin settings
 uint32_t ledValues[NUMPIXELS]; // Local buffer echoing pixel color settings
-bool     flash;                // Flash state (true = on)
+bool     flash = false;        // Flash state (true = on)
+int      pixelstate = 0;       // Indicates which pixel is activiate in rotation. Changes each
+                               // round through the event loop.
+
+// Rainbow color definitions
+
+uint32_t color[] = {
+  COLOR_RED,
+  COLOR_ORANGE,
+  COLOR_YELLOW,
+  COLOR_GREEN, 
+  COLOR_BLUE, 
+  COLOR_INDIGO, 
+  COLOR_VIOLET
+};
 
 /*
  * Arduino set-up function (called once upon power-up and reset)
  */
 
 void setup() {
-  Serial.begin(9600);
+#ifdef DEBUG
+  Serial.begin(38400);
+  Serial.println("Lighting Program Active");
+#endif
   pinMode(BUILTINLED, OUTPUT);      
   pinMode(SIGNAL0,    INPUT);     
   pinMode(SIGNAL1,    INPUT);     
@@ -81,6 +102,8 @@ void setup() {
   pixels.begin();
   setShield(COLOR_GREEN);
   flash = false;
+  pixelstate = 0;
+  ledOn();
 }
 
 /*
@@ -124,27 +147,39 @@ void loop() {
   sPin2 = digitalRead(SIGNAL1) == HIGH;
   sPin3 = digitalRead(SIGNAL2) == HIGH;
 
-  // Print state to console for diagnostics
-
-  Serial.print(sPin1 ? "1" : "0");
-  Serial.print(sPin2 ? "1" : "0");
-  Serial.print(sPin3 ? "1" : "0");
-  Serial.println();
-
   // Save last command state and get new one
 
   lastcmd = command;
   command = getCmd(sPin1, sPin2, sPin3);
+
+  // Print state to console for diagnostics
+
+#ifdef DEBUG
+  Serial.print("Pins: ");
+  Serial.print(sPin1 ? "1" : "0");
+  Serial.print(sPin2 ? "1" : "0");
+  Serial.print(sPin3 ? "1" : "0");
+  Serial.print(", Flash State: ");
+  Serial.print((flash) ? "On " : "Off");
+  Serial.print(", Pixel State: ");
+  Serial.print(pixelstate);  
+  Serial.print(", Command: ");
+  Serial.print(command);  
+  Serial.print(", Last Command: ");
+  Serial.print(lastcmd);  
+  Serial.println();
+  delay(500);
+#endif
 
   // If last command state was a full effect, i.e. used all the LEDs, then
   // recover from that state.  This is another hack and a way to handle the
   // shield without implementing an LED map.
   // TODO: Implement this in a better way
 
-  if (lastcmd < 3 && command > 2) {
+  if ((command != lastcmd) && lastcmd < 3 && command > 2) {
     resetStrip();
   }
-  
+
   // Display the selected program
   
   switch (command) {
@@ -153,12 +188,12 @@ void loop() {
       break;
     case 6: // Mode 110; Red With Boulder (Red Flashing)
       allOn((flash) ? COLOR_RED : COLOR_BLACK);
-      flash = ~flash;
+      flash = !flash;
       delay(FLASHDELAY);
       break;
     case 5: // Mode 101 Blue With Boulder (Blue Flashing)
       allOn((flash) ? COLOR_BLUE : COLOR_BLACK);
-      flash = ~flash;
+      flash = !flash;
       delay(FLASHDELAY);
       break;
     case 4: // Mode 100 Red No Boulder (Red)
@@ -174,9 +209,16 @@ void loop() {
       rainbow();
       break;
     case 0: // Mode: Disconnected
-      pulse(COLOR_ORANGE);
+      allOn(COLOR_ORANGE);
       break;
   }
+
+  // Increment pixel state. Adjust back to zero when appropriate
+
+  pixelstate++;
+  if (pixelstate >= NUMPIXELS)
+    pixelstate = 0;
+
 }
 
 /*
@@ -204,7 +246,6 @@ void setShield(uint32_t color) {
   // virtual pixels to pixel numbers, but in the heat of
   // competition prep that didn't get done.
   // TODO: Do this in a better way
-
   
   for (int pixel = 6; pixel < 18; pixel++)
     setAPixel(pixel, color, FULLBRIGHT);
@@ -251,74 +292,69 @@ void resetStrip() {
  */
 
 void rainbow() {
-
     const int modeDelay = 25;
     
-    static uint32_t color[] = {
-        COLOR_RED,
-        COLOR_ORANGE,
-        COLOR_YELLOW,
-        COLOR_GREEN, 
-        COLOR_BLUE, 
-        COLOR_INDIGO, 
-        COLOR_VIOLET
-    };
+    setAPixel(pixelstate, color[0]);
+    
+    for (int i = 0; i < 5; i++)
+      if (pixelstate > i)
+        setAPixel(pixelstate - i - 1, color[i + 1]);
 
-    for(int pixel = 0; pixel < NUMPIXELS; pixel++) {
-        setAPixel(pixel, color[0]);
-        for (int i = 0; i < 5; i++)
-            if (pixel > i)
-              setAPixel(pixel - i - 1, color[i + 1]);
-        setAPixel(pixel - 6, COLOR_BLACK);
-        pixels.show(); 
-        delay(modeDelay); 
+    if (pixelstate > 5)
+      setAPixel(pixelstate - 6, COLOR_BLACK);
+
+    if (pixelstate == 4) {
+      setAPixel(3, COLOR_BLACK);
+      setAPixel(2, COLOR_BLACK);
+      setAPixel(1, COLOR_BLACK);
+      setAPixel(0, COLOR_BLACK);
+      setAPixel(NUMPIXELS - 0, COLOR_BLACK);
+      setAPixel(NUMPIXELS - 1, COLOR_BLACK);          
+      setAPixel(NUMPIXELS - 2, COLOR_BLACK);          
     }
 
-    for(int pixel = 6; pixel > 0; pixel--) {
-        setAPixel(NUMPIXELS - pixel, COLOR_BLACK);    
-        pixels.show();
-        delay(modeDelay);        
+    if (pixelstate == 3) {
+      setAPixel(2, COLOR_BLACK);
+      setAPixel(1, COLOR_BLACK);
+      setAPixel(0, COLOR_BLACK);
+      setAPixel(NUMPIXELS - 0, COLOR_BLACK);
+      setAPixel(NUMPIXELS - 1, COLOR_BLACK);
+      setAPixel(NUMPIXELS - 2, COLOR_BLACK);     
+      setAPixel(NUMPIXELS - 3, COLOR_BLACK);     
     }
 
-    resetStrip();
-}
-
-/*
- * fade()
- * 
- * Helper function for 'pulse' that either fades in or out all the pixels
- */
-
-void fade(uint32_t color, int fade, int delayBy) {
-    for (int level = (fade ? BRIGHTNESS : 0); (fade ? (level > 0) : (level < BRIGHTNESS)); level = level + (fade ? -1 : 1)) {
-        for(int pixel = 0; pixel < NUMPIXELS; pixel++) {
-
-          // And... below is a doubly hacky way of ignoring the shield pixels
-          // TODO: Do this in a better way
-        
-          if (pixel > 5 && pixel < 18)
-            continue;
-          if (pixel > 53 && pixel < 66)
-            continue;
-            
-          setAPixel(pixel, color, level);
-        }
-        pixels.show();
-        delay(delayBy);
+    if (pixelstate == 2) {
+      setAPixel(1, COLOR_BLACK);
+      setAPixel(0, COLOR_BLACK);
+      setAPixel(NUMPIXELS - 0, COLOR_BLACK);
+      setAPixel(NUMPIXELS - 1, COLOR_BLACK);
+      setAPixel(NUMPIXELS - 2, COLOR_BLACK);
+      setAPixel(NUMPIXELS - 3, COLOR_BLACK);
+      setAPixel(NUMPIXELS - 4, COLOR_BLACK);     
     }
-}
+ 
+    if (pixelstate == 1) {
+      setAPixel(0, COLOR_BLACK);
+      setAPixel(NUMPIXELS - 0, COLOR_BLACK);
+      setAPixel(NUMPIXELS - 1, COLOR_BLACK);
+      setAPixel(NUMPIXELS - 2, COLOR_BLACK);
+      setAPixel(NUMPIXELS - 3, COLOR_BLACK);
+      setAPixel(NUMPIXELS - 4, COLOR_BLACK);
+      setAPixel(NUMPIXELS - 5, COLOR_BLACK);
+    }
 
-/*
- * pulse()
- * 
- * Pulse the strip with a specified color
- */
+    if (pixelstate == 0) {
+      setAPixel(NUMPIXELS - 0, COLOR_BLACK);
+      setAPixel(NUMPIXELS - 1, COLOR_BLACK);
+      setAPixel(NUMPIXELS - 2, COLOR_BLACK);
+      setAPixel(NUMPIXELS - 3, COLOR_BLACK);
+      setAPixel(NUMPIXELS - 4, COLOR_BLACK);
+      setAPixel(NUMPIXELS - 5, COLOR_BLACK);
+      setAPixel(NUMPIXELS - 6, COLOR_BLACK);
+    }
 
-void pulse(uint32_t color) {
-    const int modeDelay = 10;
-    fade(color, FADE_IN,  modeDelay);
-    fade(color, FADE_OUT, modeDelay);
-    resetStrip();       
+    pixels.show();
+    delay(modeDelay);
 }
 
 /*
@@ -329,12 +365,29 @@ void pulse(uint32_t color) {
 
 void loopAround(uint32_t color) {
     const int modeDelay = 10;
-    for(uint32_t pixel = 0; pixel < NUMPIXELS; pixel++) {
-        if (pixel > 0)
-          setAPixel(pixel - 1, COLOR_BLACK);
-        setAPixel(pixel, color);       
-        pixels.show();
-        delay(modeDelay); 
-    }
-    resetStrip();
+    if (pixelstate == 0)
+      setAPixel(NUMPIXELS - 1, COLOR_BLACK);
+    if (pixelstate > 0)
+      setAPixel(pixelstate - 1, COLOR_BLACK);
+    setAPixel(pixelstate, color);       
+    pixels.show();
+    delay(modeDelay);
 }
+
+/*
+ * Turn on built-in LED
+ */
+
+void ledOn() {
+  digitalWrite(BUILTINLED, HIGH);
+}
+
+/*
+ * Turn off built-in LED
+ */
+
+void ledOff() {
+  digitalWrite(BUILTINLED, LOW);
+}
+
+
