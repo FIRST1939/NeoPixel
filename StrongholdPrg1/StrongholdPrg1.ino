@@ -10,6 +10,17 @@
  * settings.
  */
 
+/*
+ * LED Schedule
+ * 
+ * 0-29 - starboard side
+ *      6-17 shield
+ * 30-47 - back
+ * 48-77 - port side
+ * 54-66 shield
+ * 78-103 - front bar
+ */
+
 // Include Adafruit's NeoPixel library
 
 #include <Adafruit_NeoPixel.h>
@@ -21,7 +32,7 @@
 #define SIGNAL2      2  // Pin used for last (most significant) command bit
 #define BUILTINLED  13  // Pin assigned to the built-in LED on the Teensy
 #define PIN         17  // Pin to use to talk to the NeoPixel Ring
-#define BRIGHTNESS 255  // Brightness level
+#define BRIGHTNESS  80  // Brightness level
 #define NUMPIXELS  104  // Number of pixels in ring
 
 // Define standard color patterns
@@ -48,8 +59,10 @@ Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN);
 
 // Variables
 
-int command = 0;           // Current command (light program)
-bool spin1, spin2, spin3;  // Boolean values for pin settings
+int      command = 0;          // Current command (light program)
+bool     sPin1, sPin2, sPin3;  // Boolean values for pin settings
+uint32_t ledValues[NUMPIXELS]; // Local buffer echoing pixel color settings
+bool     flash;
 
 /*
  * Arduino set-up function (called once upon power-up and reset)
@@ -63,6 +76,8 @@ void setup() {
   pinMode(SIGNAL2,    INPUT);     
   pixels.setBrightness(BRIGHTNESS);
   pixels.begin();
+  setShield(COLOR_GREEN);
+  flash = false;
 }
 
 /*
@@ -102,45 +117,86 @@ void loop() {
 
   // Read signal pins on the digital port
   
-  spin1 = digitalRead(SIGNAL0) == HIGH;
-  spin2 = digitalRead(SIGNAL1) == HIGH;
-  spin3 = digitalRead(SIGNAL2) == HIGH;
+  sPin1 = digitalRead(SIGNAL0) == HIGH;
+  sPin2 = digitalRead(SIGNAL1) == HIGH;
+  sPin3 = digitalRead(SIGNAL2) == HIGH;
 
   // Print state to console for diagnostics
 
-  Serial.print(spin1 ? "1" : "0");
-  Serial.print(spin2 ? "1" : "0");
-  Serial.print(spin3 ? "1" : "0");
+  Serial.print(sPin1 ? "1" : "0");
+  Serial.print(sPin2 ? "1" : "0");
+  Serial.print(sPin3 ? "1" : "0");
   Serial.println();
 
   // Display the selected program
   
-  switch (getCmd(spin1, spin2, spin3)) {
-    case 0:
-      allOn(COLOR_PINK);
-      break;
-    case 1:
-      allOn(COLOR_RED);
-      break;
-    case 2:
-      allOn(COLOR_BLUE);
-      break;
-    case 3:
+  switch (getCmd(sPin1, sPin2, sPin3)) {
+    case 7: // Mode: 111 End Game (Green)
       allOn(COLOR_GREEN);
       break;
-    case 4:
-      allOn(COLOR_ORANGE);
+    case 6: // Mode 110; Red With Boulder (Red Flashing)
+      if (flash){
+        allOn(COLOR_RED);
+        flash = false;
+  }else{
+        allOn(COLOR_BLACK);
+        flash = true;
+  }
+      delay(100);
       break;
-    case 5:
+    case 5: // Mode 101 Blue With Boulder (Blue Flashing)
+      if (flash){
+        allOn(COLOR_BLUE);
+        flash = false;
+  } else {
+    allOn(COLOR_BLACK);
+    flash = true;
+  }
+  delay(100);
+      break;
+    case 4: // Mode 100 Red No Boulder (Red)
+      allOn(COLOR_RED);
+      break;
+    case 3: // Mode 011 Blue No Boulder (Blue)
+      allOn(COLOR_BLUE);
+      break;
+    case 2: // Mode 010 Auto (Yellow)
       allOn(COLOR_YELLOW);
       break;
-    case 6:
-      allOn(COLOR_VIOLET);
+    case 1: // Mode 001 Disabled (Rainbow)
+      allOn(COLOR_WHITE);
       break;
-    case 7:
-      pulse(COLOR_WHITE);
+    case 0: // Mode: Disconnected
+      allOn(COLOR_ORANGE);
       break;
   }
+}
+
+/*
+ * setAPixel() - Set pixel command
+ */
+
+void setAPixel(uint16_t pixel, uint32_t color) {
+  setAPixel(pixel, color, BRIGHTNESS);
+}
+
+void setAPixel(uint16_t pixel, uint32_t color, uint8_t level) {
+  ledValues[pixel] = color;
+  pixels.setBrightness(level);
+  pixels.setPixelColor(pixel, color);
+}
+
+/*
+ * setShield()
+ */
+
+void setShield(uint32_t color) {
+  for (int pixel = 6; pixel < 18; pixel++)
+    setAPixel(pixel, color, 255);
+  for (int pixel = 54; pixel < 66; pixel++)
+    setAPixel(pixel, color, 255);
+  pixels.show();
+
 }
 
 /*
@@ -149,8 +205,11 @@ void loop() {
 
 void allOn(uint32_t color) {
   for (int pixel = 0; pixel < NUMPIXELS; pixel++) {
-    pixels.setBrightness(BRIGHTNESS);
-    pixels.setPixelColor(pixel, color);
+    if (pixel > 5 && pixel < 18)
+      continue;
+    if (pixel > 53 && pixel < 66)
+      continue;
+    setAPixel(pixel, color);
   }
   pixels.show();
 }
@@ -162,11 +221,7 @@ void allOn(uint32_t color) {
  */
 
 void resetRing() {
-    for(int pixel = 0; pixel < NUMPIXELS; pixel++) {
-        pixels.setPixelColor(pixel, COLOR_BLACK);
-        pixels.setBrightness(BRIGHTNESS);
-    }
-    pixels.show();
+    allOn(COLOR_BLACK);
 }
 
 /*
@@ -177,7 +232,7 @@ void resetRing() {
 
 void rainbow() {
 
-    static int modeDelay = 25;
+    const int modeDelay = 25;
     
     static uint32_t color[] = {
         COLOR_RED,
@@ -190,16 +245,17 @@ void rainbow() {
     };
 
     for(int pixel = 0; pixel < NUMPIXELS; pixel++) {
-        pixels.setPixelColor(pixel, color[0]);
+        setAPixel(pixel, color[0]);
         for (int i = 0; i < 5; i++)
-            if (pixel > i) pixels.setPixelColor(pixel - i - 1, color[i + 1]);
-        pixels.setPixelColor(pixel - 6, COLOR_BLACK);
+            if (pixel > i)
+              setAPixel(pixel - i - 1, color[i + 1]);
+        setAPixel(pixel - 6, COLOR_BLACK);
         pixels.show(); 
         delay(modeDelay); 
     }
 
     for(int pixel = 6; pixel > 0; pixel--) {
-        pixels.setPixelColor(NUMPIXELS - pixel, COLOR_BLACK);    
+        setAPixel(NUMPIXELS - pixel, COLOR_BLACK);    
         pixels.show();
         delay(modeDelay);        
     }
@@ -214,11 +270,13 @@ void rainbow() {
  */
 
 void fade(uint32_t color, int fade, int delayBy) {
-    int level;
-    for (level = (fade ? BRIGHTNESS : 0); (fade ? (level > 0) : (level < BRIGHTNESS)); level = level + (fade ? -1 : 1)) {
+    for (int level = (fade ? BRIGHTNESS : 0); (fade ? (level > 0) : (level < BRIGHTNESS)); level = level + (fade ? -1 : 1)) {
         for(int pixel = 0; pixel < NUMPIXELS; pixel++) {
-            pixels.setPixelColor(pixel, color);
-            pixels.setBrightness(level);
+    if (pixel > 5 && pixel < 18)
+      continue;
+    if (pixel > 53 && pixel < 66)
+      continue;
+          setAPixel(pixel, color, level);
         }
         pixels.show();
         delay(delayBy);
@@ -232,8 +290,8 @@ void fade(uint32_t color, int fade, int delayBy) {
  */
 
 void pulse(uint32_t color) {
-    static int modeDelay = 10;
-    fade(color, FADE_IN, modeDelay);
+    const int modeDelay = 10;
+    fade(color, FADE_IN,  modeDelay);
     fade(color, FADE_OUT, modeDelay);
     resetRing();       
 }
@@ -245,10 +303,11 @@ void pulse(uint32_t color) {
  */
 
 void loopAround(uint32_t color) {
-    static int modeDelay = 10;
+    const int modeDelay = 10;
     for(uint32_t pixel = 0; pixel < NUMPIXELS; pixel++) {
-        if (pixel > 0) pixels.setPixelColor(pixel - 1, COLOR_BLACK);
-        pixels.setPixelColor(pixel, color);       
+        if (pixel > 0)
+          setAPixel(pixel - 1, COLOR_BLACK);
+        setAPixel(pixel, color);       
         pixels.show();
         delay(modeDelay); 
     }
