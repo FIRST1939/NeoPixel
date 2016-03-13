@@ -75,7 +75,7 @@ int      pixelstate = 0;       // Indicates which pixel is activiate in rotation
 
 // Rainbow color definitions
 
-uint32_t color[] = {
+uint32_t colors[] = {
   COLOR_RED,
   COLOR_ORANGE,
   COLOR_YELLOW,
@@ -206,7 +206,7 @@ void loop() {
       loopAround(COLOR_YELLOW);
       break;
     case 1: // Mode 001 Disabled (Rainbow)
-      rainbow();
+      rainbow2();
       break;
     case 0: // Mode: Disconnected
       allOn(COLOR_ORANGE);
@@ -294,11 +294,11 @@ void resetStrip() {
 void rainbow() {
     const int modeDelay = 25;
     
-    setAPixel(pixelstate, color[0]);
+    setAPixel(pixelstate, colors[0]);
     
     for (int i = 0; i < 5; i++)
       if (pixelstate > i)
-        setAPixel(pixelstate - i - 1, color[i + 1]);
+        setAPixel(pixelstate - i - 1, colors[i + 1]);
 
     if (pixelstate > 5)
       setAPixel(pixelstate - 6, COLOR_BLACK);
@@ -355,6 +355,30 @@ void rainbow() {
 
     pixels.show();
     delay(modeDelay);
+}
+
+/*
+ * rainbow()
+ * 
+ * Generate a rainbow chase light effect
+ */
+
+void rainbow2() {
+  const int modeDelay = 25;
+  for (int pixel = 0; pixel < NUMPIXELS; pixel++) {
+
+    // And... below is a doubly hacky way of ignoring the shield pixels
+    // TODO: Do this in a better way
+    
+    if (pixel > 5 && pixel < 18)
+      continue;
+    if (pixel > 53 && pixel < 66)
+      continue;
+    setAPixel(pixel, colors[(int)((float)pixel + pixelstate / 7.25) % 7 ]);
+  }
+    
+  pixels.show();
+  delay(modeDelay);
 }
 
 /*
