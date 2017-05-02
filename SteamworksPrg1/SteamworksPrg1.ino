@@ -30,7 +30,7 @@
 
 // Debug mode (uncomment next line for debug mode)
 
-#define DEBUG 1 
+//#define DEBUG 1 
 
 // Test mode (16 color program with no effects)
 
@@ -46,8 +46,8 @@
 #define PIN         17  // Pin to use to talk to the NeoPixel Strip
 #define BRIGHTNESS 120  // Default brightness level
 #define FULLBRIGHT 255  // Full on
-#define NUMPIXELS  151  // Number of pixels in strip
-#define FLASHDELAY  50  // Time width of flash (on and off time equal)
+#define NUMPIXELS  150  // Number of pixels in strip
+#define FLASHDELAY 200  // Time width of flash (on and off time equal)
 
 // Define standard color patterns (ww gg rr bb)
 
@@ -81,13 +81,14 @@ Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_RGBW + NEO_KHZ8
 
 // Variables
 
-int      command = 0;                 // Current command (light program)
-int      lastcmd = 0;                 // Last command (used to recover from effects that impact all lights
-bool     sPin1, sPin2, sPin3, sPin4;  // Boolean values for pin settings
-uint32_t ledValues[NUMPIXELS];        // Local buffer echoing pixel color settings
-bool     flash = false;               // Flash state (true = on)
-int      pixelstate = 0;              // Indicates which pixel is activiate in rotation. Changes each
-                                      // round through the event loop.
+int      command = 0;    // Current command (light program)
+int      lastcmd = 0;    // Last command (used to recover from effects that impact all lights
+bool     sPin1;          // Boolean values for pin settings
+bool     sPin2;
+bool     sPin3;
+bool     sPin4;
+bool     flash = false;  // Flash state (true = on)
+int      pixelstate = 0; // Indicates which pixel is activiate in rotation. Changes each round through the event loop.
 
 // Rainbow color definitions
 
@@ -106,10 +107,6 @@ uint32_t colors[] = {
  */
 
 void setup() {
-#ifdef DEBUG
-  Serial.begin(38400);
-  Serial.println("Lighting Program Active");
-#endif
   pinMode(BUILTINLED, OUTPUT);      
   pinMode(SIGNAL0,    INPUT);     
   pinMode(SIGNAL1,    INPUT);     
@@ -292,7 +289,8 @@ void loop() {
   resetStrip();
 
   // Display the selected program
-  
+
+  setGear(COLOR_BLACK);
   switch (command) {
     case 0: // Not enabled
       pixels.setBrightness(BRIGHTNESS);
@@ -303,10 +301,7 @@ void loop() {
       break;
     case 1: // Not used
       pixels.setBrightness(BRIGHTNESS);
-      allOn(COLOR_PINK);
-      setCamera(COLOR_BLACK);
-      setGear(COLOR_PINK);
-      setCameraTop(COLOR_PINK);
+      rainbow();
       break;
     case 2: // Auton (Red Alliance)
       pixels.setBrightness(FULLBRIGHT);
@@ -329,12 +324,14 @@ void loop() {
       allOn(COLOR_RED);
       setCamera(COLOR_BLACK);
       setCameraTop(COLOR_RED);
+      setGear(COLOR_RED);
       break;
     case 5: // Driving (Blue Alliance)
       pixels.setBrightness(BRIGHTNESS);
       allOn(COLOR_BLUE);
       setCamera(COLOR_BLACK);
       setCameraTop(COLOR_BLUE);
+      setGear(COLOR_BLUE);
       break;
     case 6: // Gear in posession (Red Alliance)
       pixels.setBrightness(FULLBRIGHT);
@@ -417,13 +414,12 @@ void loop() {
   }
   pixels.show();
 
-
 #endif
 
   // Increment pixel state. Adjust back to zero when appropriate
 
   pixelstate++;
-  if (pixelstate >= NUMPIXELS)
+  if (pixelstate >= 135)
     pixelstate = 0;
 
 }
@@ -437,8 +433,6 @@ void setAPixel(uint16_t pixel, uint32_t color) {
 }
 
 void setAPixel(uint16_t pixel, uint32_t color, uint8_t level) {
-  ledValues[pixel] = color;
-//  pixels.setBrightness(level);
   pixels.setPixelColor(pixel, color);
 }
 
@@ -470,91 +464,8 @@ void resetStrip() {
  */
 
 void rainbow() {
-    const int modeDelay = 25;
-    
-    setAPixel(pixelstate, colors[0]);
-    
-    for (int i = 0; i < 5; i++)
-      if (pixelstate > i)
-        setAPixel(pixelstate - i - 1, colors[i + 1]);
-
-    if (pixelstate > 5)
-      setAPixel(pixelstate - 6, COLOR_BLACK);
-
-    if (pixelstate == 4) {
-      setAPixel(3, COLOR_BLACK);
-      setAPixel(2, COLOR_BLACK);
-      setAPixel(1, COLOR_BLACK);
-      setAPixel(0, COLOR_BLACK);
-      setAPixel(NUMPIXELS - 0, COLOR_BLACK);
-      setAPixel(NUMPIXELS - 1, COLOR_BLACK);          
-      setAPixel(NUMPIXELS - 2, COLOR_BLACK);          
-    }
-
-    if (pixelstate == 3) {
-      setAPixel(2, COLOR_BLACK);
-      setAPixel(1, COLOR_BLACK);
-      setAPixel(0, COLOR_BLACK);
-      setAPixel(NUMPIXELS - 0, COLOR_BLACK);
-      setAPixel(NUMPIXELS - 1, COLOR_BLACK);
-      setAPixel(NUMPIXELS - 2, COLOR_BLACK);     
-      setAPixel(NUMPIXELS - 3, COLOR_BLACK);     
-    }
-
-    if (pixelstate == 2) {
-      setAPixel(1, COLOR_BLACK);
-      setAPixel(0, COLOR_BLACK);
-      setAPixel(NUMPIXELS - 0, COLOR_BLACK);
-      setAPixel(NUMPIXELS - 1, COLOR_BLACK);
-      setAPixel(NUMPIXELS - 2, COLOR_BLACK);
-      setAPixel(NUMPIXELS - 3, COLOR_BLACK);
-      setAPixel(NUMPIXELS - 4, COLOR_BLACK);     
-    }
- 
-    if (pixelstate == 1) {
-      setAPixel(0, COLOR_BLACK);
-      setAPixel(NUMPIXELS - 0, COLOR_BLACK);
-      setAPixel(NUMPIXELS - 1, COLOR_BLACK);
-      setAPixel(NUMPIXELS - 2, COLOR_BLACK);
-      setAPixel(NUMPIXELS - 3, COLOR_BLACK);
-      setAPixel(NUMPIXELS - 4, COLOR_BLACK);
-      setAPixel(NUMPIXELS - 5, COLOR_BLACK);
-    }
-
-    if (pixelstate == 0) {
-      setAPixel(NUMPIXELS - 0, COLOR_BLACK);
-      setAPixel(NUMPIXELS - 1, COLOR_BLACK);
-      setAPixel(NUMPIXELS - 2, COLOR_BLACK);
-      setAPixel(NUMPIXELS - 3, COLOR_BLACK);
-      setAPixel(NUMPIXELS - 4, COLOR_BLACK);
-      setAPixel(NUMPIXELS - 5, COLOR_BLACK);
-      setAPixel(NUMPIXELS - 6, COLOR_BLACK);
-    }
-
-    delay(modeDelay);
-}
-
-/*
- * rainbow()
- * 
- * Generate a rainbow chase light effect
- */
-
-void rainbow2() {
-  const int modeDelay = 25;
-  for (int pixel = 0; pixel < NUMPIXELS; pixel++) {
-
-    // And... below is a doubly hacky way of ignoring the shield pixels
-    // TODO: Do this in a better way
-    
-    if (pixel > 5 && pixel < 18)
-      continue;
-    if (pixel > 53 && pixel < 66)
-      continue;
+  for (int pixel = 0; pixel < 135; pixel++)
     setAPixel(pixel, colors[(int)((float)pixel + pixelstate / 7.25) % 7 ]);
-  }
-    
-  delay(modeDelay);
 }
 
 /*
@@ -566,7 +477,7 @@ void rainbow2() {
 void loopAround(uint32_t color) {
     const int modeDelay = 10;
     if (pixelstate == 0)
-      setAPixel(NUMPIXELS - 1, COLOR_BLACK);
+      setAPixel(135, COLOR_BLACK);
     if (pixelstate > 0)
       setAPixel(pixelstate - 1, COLOR_BLACK);
     setAPixel(pixelstate, color);       
@@ -608,37 +519,36 @@ void setFrontPanel(uint32_t color) {
 }
 
 // * 093-109 - gear right
-// * 120-135 - gear left
+// * 120-134 - gear left
 
 void setGear(uint32_t color) {    
   setPixelRange(color,  92, 110);
-  setPixelRange(color, 119, 136);
+  setPixelRange(color, 118, 135);
 }
 
 // * 110-119 - camera top
 
 void setCameraTop(uint32_t color) {
-  setPixelRange(color, 110, 119);
+  setPixelRange(color, 110, 118);
 }
 
-// * 136-139 - camera left
+// * 135-138 - camera left
 
 void setCameraLeft(uint32_t color) {    
-  setPixelRange(color, 136, 140);
+  setPixelRange(COLOR_BLACK, 135, 139);
 }
 
-// * 140-146 - camera bottom
+// * 139-145 - camera bottom
 
 void setCameraBottom(uint32_t color) {    
-  setPixelRange(color, 140, 147);
+  setPixelRange(COLOR_BLACK, 139, 146);
 }
 
-// * 147-150 - camera right
+// * 146-149 - camera right
 
 void setCameraRight(uint32_t color) {    
-  setPixelRange(color, 147, 151);
+  setPixelRange(COLOR_BLACK, 146, 150);
 }
-
 
 // Set a range of pixels
 
@@ -652,18 +562,9 @@ void setPixelRange(uint32_t color, uint8_t first, uint8_t last) {
  */
 
 void setCamera(uint32_t color) {
-  
-  // Below is a hacky way of handling the shield pixels
-  // there is a better way to do this with an array mapping
-  // virtual pixels to pixel numbers, but in the heat of
-  // competition prep that didn't get done.
-  // TODO: Do this in a better way
-  
   setCameraTop(color);
   setCameraLeft(color);
   setCameraBottom(color);
   setCameraRight(color);
-//  pixels.show();
-
 }
 
