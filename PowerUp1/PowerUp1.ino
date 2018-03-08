@@ -23,7 +23,7 @@
 
 // Debug mode (uncomment next line for debug mode)
 
-#define DEBUG 1 
+// #define DEBUG 1 
 
 // Implementation specific settings
 
@@ -104,6 +104,7 @@ void setup() {
   pinMode(SIGNAL3,    INPUT);     
   pixels.setBrightness(BRIGHTNESS);
   pixels.begin();
+  resetStrip();
   pixels.show(); // Initializes all pixels to 'off'
   flash = false;
   pixelstate = 0;
