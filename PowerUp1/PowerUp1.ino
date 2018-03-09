@@ -35,7 +35,7 @@
 #define PIN         17  // Pin to use to talk to the NeoPixel Strip
 #define BRIGHTNESS 120  // Default brightness level
 #define FULLBRIGHT 255  // Full on
-#define NUMPIXELS   68  // Number of pixels in strip
+#define NUMPIXELS   70  // Number of pixels in strip
 #define FLASHDELAY 200  // Time width of flash (on and off time equal)
 
 // Define standard color patterns (ww gg rr bb)
@@ -262,7 +262,10 @@ void loop() {
       break;
     case 0:
 //      allOn(COLOR_WHITE);
-      chaseUp(COLOR_RED);
+//      chaseUp(COLOR_GREEN);
+//      setLeft(COLOR_GREEN);
+//      setRight(COLOR_GREEN);
+      allOn(COLOR_GREEN);
       break;
   }
   pixels.show();
@@ -328,7 +331,7 @@ void rainbow() {
  */
 
 void chaseUp(uint32_t color) {
-  const int barsize = 5;
+  const int barsize = 6;
 
   // Left side
   
@@ -385,13 +388,13 @@ void ledOff() {
 // * 000-033  - left side
 
 void setLeft(uint32_t color) {    
-  setPixelRange(color, 0, 33);
+  setPixelRange(color, 0, 35);
 }
 
 // * 034-067  - right side
 
 void setRight(uint32_t color) {    
-  setPixelRange(color, 34, 67);
+  setPixelRange(color, 35, 70);
 }
 
 
