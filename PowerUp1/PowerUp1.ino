@@ -2,7 +2,7 @@
  * PowerUp FIRST Robotics Competition (2018)
  * Team 1939 Barstow Kuhnigits Lighting Program
  * Sir
- * 
+ *
  * Hardware configuration leverages a Teensy-LC Arduino clone
  * microcontroller.  Commands are sent to the Teensy-LC via
  * four digital signal pins from the a National Instruments
@@ -12,7 +12,7 @@
 
 /*
  * LED Schedule
- * 
+ *
  * 000-033 - left side
  * 034-067 - right side
  */
@@ -23,7 +23,7 @@
 
 // Debug mode (uncomment next line for debug mode)
 
-// #define DEBUG 1 
+// #define DEBUG 1
 
 // Implementation specific settings
 
@@ -66,6 +66,7 @@
 //   NEO_GRB     Pixels are wired for GRB bitstream (most NeoPixel products)
 //   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
 //   NEO_RGBW    Pixels are wired for RGBW bitstream (NeoPixel RGBW products)
+
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
 
 // Variables
@@ -76,9 +77,10 @@ bool     sPin1;          // Boolean values for pin settings
 bool     sPin2;
 bool     sPin3;
 bool     sPin4;
-bool     flash = false;  // Flash state (true = on)
-int      pixelstate = 0; // Indicates which pixel is activiate in rotation. Changes each round through the event loop.
-int      chasestate = 0; // Indicates which pixel is active in chase mode
+bool     flash     = false; // Flash state (true = on)
+bool     chasingUp = false; // Flag indicating chasing direction
+int      pixelstate = 0;  // Indicates which pixel is activiate in rotation. Changes each round through the event loop.
+int      chasestate = 0;  // Indicates which pixel is active in chase mode
 
 // Rainbow color definitions
 
@@ -86,9 +88,9 @@ uint32_t colors[] = {
   COLOR_RED,
   COLOR_ORANGE,
   COLOR_YELLOW,
-  COLOR_GREEN, 
-  COLOR_BLUE, 
-  COLOR_INDIGO, 
+  COLOR_GREEN,
+  COLOR_BLUE,
+  COLOR_INDIGO,
   COLOR_VIOLET
 };
 
@@ -97,16 +99,17 @@ uint32_t colors[] = {
  */
 
 void setup() {
-  pinMode(BUILTINLED, OUTPUT);      
-  pinMode(SIGNAL0,    INPUT);     
-  pinMode(SIGNAL1,    INPUT);     
+  pinMode(BUILTINLED, OUTPUT);
+  pinMode(SIGNAL0,    INPUT);
+  pinMode(SIGNAL1,    INPUT);
   pinMode(SIGNAL2,    INPUT);
-  pinMode(SIGNAL3,    INPUT);     
+  pinMode(SIGNAL3,    INPUT);
   pixels.setBrightness(BRIGHTNESS);
   pixels.begin();
   resetStrip();
   pixels.show(); // Initializes all pixels to 'off'
   flash = false;
+  chasingUp = true;
   pixelstate = 0;
   chasestate = 0;
   ledOn();
@@ -114,7 +117,7 @@ void setup() {
 
 /*
  * getCmd() Helper Function
- * 
+ *
  * Converts pin settings into commmand
  */
 
@@ -150,9 +153,9 @@ int getCmd(bool pin1, bool pin2, bool pin3, bool pin4) {
   } else if ( pin1 &&  pin2 && !pin3 &&  pin4) {
     return 13;
   } else if ( pin1 &&  pin2 &&  pin3 && !pin4) {
-    return 14;    
+    return 14;
   } else {
-    return 15;    
+    return 15;
   }
   return 1000; // should never hit this
 }
@@ -164,7 +167,7 @@ int getCmd(bool pin1, bool pin2, bool pin3, bool pin4) {
 void loop() {
 
   // Read signal pins on the digital port
-  
+
   sPin1 = digitalRead(SIGNAL0) == HIGH;
   sPin2 = digitalRead(SIGNAL1) == HIGH;
   sPin3 = digitalRead(SIGNAL2) == HIGH;
@@ -175,8 +178,7 @@ void loop() {
   lastcmd = command;
   command = getCmd(sPin1, sPin2, sPin3, sPin4);
 
-  // Print state to console for diagnostics
-
+// Print state to console for diagnostics when in debug
 #ifdef DEBUG
   Serial.print("Pins: ");
   Serial.print(sPin1 ? "1" : "0");
@@ -186,86 +188,108 @@ void loop() {
   Serial.print(", Flash State: ");
   Serial.print((flash) ? "On " : "Off");
   Serial.print(", Pixel State: ");
-  Serial.print(pixelstate);  
+  Serial.print(pixelstate);
   Serial.print(", Chase State: ");
-  Serial.print(chasestate);  
+  Serial.print(chasestate);
   Serial.print(", Command: ");
-  Serial.print(command);  
+  Serial.print(command);
   Serial.print(", Last Command: ");
-  Serial.print(lastcmd);  
+  Serial.print(lastcmd);
   Serial.println();
   delay(10);
 #endif
 
+// Program Schedule:
+//
+//  0 - Driver station not attached (test mode)
+//  1 - Robot disabled
+//  2 - Autonomous mode (Blue Alliance)
+//  3 - Elevator rising (Blue Alliance)
+//  4 - Elevator descending (Blue Alliance)
+//  5 - Elevator at top (Blue Alliance)
+//  6 - Climbing
+//  7 - Default (Blue Alliance)
+//  8 - Not used
+//  9 - Not used
+// 10 - Autonomous mode (Red Alliance)
+// 11 - Elevator rising (Red Alliance)
+// 12 - Elevator descending (Red Alliance)
+// 13 - Elevator at top (Red Alliance)
+// 14 - Climbing
+// 15 - Default (Red Alliance)
+
+// Force test mode when in debug
+#ifdef DEBUG
   command = 0;
+#endif
+
   switch (command) {
-    case 15:
-      allOn((flash) ? COLOR_RED    : COLOR_BLACK);
-      flash = !flash;
-      delay(FLASHDELAY);
+    case 15: // 15 - Default (Red Alliance)
+      allOn(COLOR_RED);
       break;
-    case 14:
+    case 14: // 14 - Climbing
       allOn((flash) ? COLOR_ORANGE : COLOR_BLACK);
       flash = !flash;
       delay(FLASHDELAY);
       break;
-    case 13:
-      allOn((flash) ? COLOR_YELLOW : COLOR_BLACK);
+    case 13: // 13 - Elevator at top (Red Alliance)
+      allOn((flash) ? COLOR_RED : COLOR_BLACK);
       flash = !flash;
       delay(FLASHDELAY);
       break;
-    case 12:
-      allOn((flash) ? COLOR_GREEN  : COLOR_BLACK);
+    case 12: // 12 - Elevator descending (Red Alliance)
+//      chaseDown(COLOR_RED);
+      allOn((flash) ? COLOR_RED : COLOR_BLACK);
       flash = !flash;
       delay(FLASHDELAY);
       break;
-    case 11:
-      allOn((flash) ? COLOR_BLUE   : COLOR_BLACK);
-      flash = !flash;
-      delay(FLASHDELAY);
+    case 11: // 11 - Elevator rising (Red Alliance)
+      chaseUp(COLOR_RED);
       break;
-    case 10:
+    case 10: // 10 - Autonomous mode (Red Alliance)
       allOn((flash) ? COLOR_INDIGO : COLOR_BLACK);
       flash = !flash;
       delay(FLASHDELAY);
       break;
-    case 9:
-      allOn((flash) ? COLOR_VIOLET : COLOR_BLACK);
-      flash = !flash;
-      delay(FLASHDELAY);
+    case 9: // 9 - Not used
+      allOn(COLOR_WHITE);
       break;
-    case 8:
-      allOn((flash) ? COLOR_WHITE  : COLOR_BLACK);
-      flash = !flash;
-      delay(FLASHDELAY);
+    case 8: // 8 - Not used
+      allOn(COLOR_WHITE);
       break;
-    case 7:
-      allOn(COLOR_RED);
-      break;
-    case 6:
-      allOn(COLOR_ORANGE);
-      break;
-    case 5:
-      allOn(COLOR_YELLOW);
-      break;
-    case 4:
-      allOn(COLOR_GREEN);
-      break;
-    case 3:
+    case 7: //  7 - Default (Blue Alliance)
       allOn(COLOR_BLUE);
       break;
-    case 2:
-      allOn(COLOR_INDIGO);
+    case 6: // 6 - Climbing
+      allOn((flash) ? COLOR_WHITE  : COLOR_BLACK);
+      flash = !flash;
       break;
-    case 1:
-      allOn(COLOR_VIOLET);
+    case 5: // 5 - Elevator at top (Blue Alliance)
+      allOn((flash) ? COLOR_BLUE  : COLOR_BLACK);
+      flash = !flash;
       break;
-    case 0:
-//      allOn(COLOR_WHITE);
-//      chaseUp(COLOR_GREEN);
-//      setLeft(COLOR_GREEN);
-//      setRight(COLOR_GREEN);
+    case 4: // 4 - Elevator descending (Blue Alliance)
+//      chaseDown(COLOR_BLUE);
+      allOn((flash) ? COLOR_BLUE  : COLOR_BLACK);
+      flash = !flash;
+      break;
+    case 3: // 3 - Elevator rising (Blue Alliance)
+      chaseUp(COLOR_BLUE);
+      break;
+    case 2: //  2 - Autonomous mode (Blue Alliance)
+      allOn((flash) ? COLOR_INDIGO : COLOR_BLACK);
+      flash = !flash;
+      delay(FLASHDELAY);
+      break;
+    case 1: // 1 - Robot disabled
+      allOn(COLOR_ORANGE);
+      break;
+    case 0: //  0 - Driver station not attached (test mode)
+#ifdef DEBUG
+      allOn(COLOR_WHITE);
+#else
       allOn(COLOR_GREEN);
+#endif
       break;
   }
   pixels.show();
@@ -276,9 +300,15 @@ void loop() {
   if (pixelstate > NUMPIXELS)
     pixelstate = 0;
 
-  chasestate++;
-  if (chasestate > 33)
-    chasestate = 0;
+  if (chasingUp) {
+    chasestate++;
+    if (chasestate > 33)
+      chasestate = 0;
+  } else {
+    chasestate--;
+    if (chasestate < 0)
+      chasestate = 32; // max
+  }
 
 }
 
@@ -305,7 +335,7 @@ void allOn(uint32_t color) {
 
 /*
  * resetStrip()
- * 
+ *
  * Reset all pixels in the strip to black (i.e. off)
  */
 
@@ -315,7 +345,7 @@ void resetStrip() {
 
 /*
  * rainbow()
- * 
+ *
  * Generate a rainbow chase light effect
  */
 
@@ -326,28 +356,63 @@ void rainbow() {
 
 /*
  * chaseUp()
- * 
+ *
  * A rising chase light on both strips
  */
 
 void chaseUp(uint32_t color) {
-  const int barsize = 6;
+  const int BAR_SIZE = 6;
+
+  // Make sure we're going up
+  chasingUp = true;
 
   // Left side
-  
-  if (chasestate < barsize) {
-    setAPixel(33 + 1 + chasestate - barsize, COLOR_BLACK);
+
+  if (chasestate < BAR_SIZE) {
+    setAPixel(33 + 1 + chasestate - BAR_SIZE, COLOR_BLACK);
   } else {
-    setAPixel(chasestate - barsize, COLOR_BLACK);
+    setAPixel(chasestate - BAR_SIZE, COLOR_BLACK);
   }
   setAPixel(chasestate, color);
 
   // Right side
-  
-  if (chasestate < barsize) {
-    setAPixel(66 + 1 + chasestate - barsize, COLOR_BLACK);
+
+  if (chasestate < BAR_SIZE) {
+    setAPixel(66 + 1 + chasestate - BAR_SIZE, COLOR_BLACK);
   } else {
-    setAPixel(33 + chasestate - barsize, COLOR_BLACK);
+    setAPixel(33 + chasestate - BAR_SIZE, COLOR_BLACK);
+  }
+  setAPixel(33 + chasestate, color);
+  delay(50);
+}
+
+/*
+ * chaseDown()
+ *
+ * Decending chase light on both strips
+ */
+
+void chaseDown(uint32_t color) {
+  const int BAR_SIZE = 6;
+
+  // Make sure we're going down
+  chasingUp = false;
+
+  // Left side
+
+  if (chasestate < BAR_SIZE) {
+    setAPixel(33 + 1 + chasestate - BAR_SIZE, COLOR_BLACK);
+  } else {
+    setAPixel(chasestate - BAR_SIZE, COLOR_BLACK);
+  }
+  setAPixel(chasestate, color);
+
+  // Right side
+
+  if (chasestate < BAR_SIZE) {
+    setAPixel(66 + 1 + chasestate - BAR_SIZE, COLOR_BLACK);
+  } else {
+    setAPixel(33 + chasestate - BAR_SIZE, COLOR_BLACK);
   }
   setAPixel(33 + chasestate, color);
   delay(50);
@@ -355,7 +420,7 @@ void chaseUp(uint32_t color) {
 
 /*
  * loopAround()
- * 
+ *
  * Loop around the strip once with a specified color
  */
 
@@ -365,7 +430,7 @@ void loopAround(uint32_t color) {
       setAPixel(NUMPIXELS, COLOR_BLACK);
     if (pixelstate > 0)
       setAPixel(pixelstate - 1, COLOR_BLACK);
-    setAPixel(pixelstate, color);       
+    setAPixel(pixelstate, color);
     delay(modeDelay);
 }
 
@@ -387,20 +452,20 @@ void ledOff() {
 
 // * 000-033  - left side
 
-void setLeft(uint32_t color) {    
+void setLeft(uint32_t color) {
   setPixelRange(color, 0, 35);
 }
 
 // * 034-067  - right side
 
-void setRight(uint32_t color) {    
+void setRight(uint32_t color) {
   setPixelRange(color, 35, 70);
 }
 
 
 // Set a range of pixels
 
-void setPixelRange(uint32_t color, uint8_t first, uint8_t last) {    
+void setPixelRange(uint32_t color, uint8_t first, uint8_t last) {
   for (int pixel = first; pixel < last; pixel++)
     setAPixel(pixel, color, BRIGHTNESS);
 }

@@ -23,6 +23,10 @@
 *.a
 *.lib
 
+# Sublime editor
+*.sublime-project
+*.sublime-workspace
+
 # Executables
 *.exe
 *.out
