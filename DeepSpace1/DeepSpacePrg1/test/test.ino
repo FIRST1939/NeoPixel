@@ -25,6 +25,16 @@
 #define NUMPIXELS     69  // Number of pixels in strip
 #define FLASHDELAY   200  // Time width of flash (on and off time equal)
 
+// Color definitions RGB strand (as opposed to RGBW strands)
+//
+// These values are in hex with three two-byte groups, i.e. 0xAABBCC where 'AA', 'BB', and 'CC' are
+// each color value ranging from 0x00 to 0xFF.  Note that the "0x" prefix tells the compiler that
+// what follows is a number in hexadecimal format.
+//
+// TODO:  The strand is really GRB, not RGB.  So, these definitions may in fact be incorrect and
+//        need to be adjusted.  They may have looked okay at Sedalia because we were only using
+//        two and the pin logic is backwards.  It will become apparent as more states are played with
+
 #define COLOR_BLACK  0x000000
 #define COLOR_RED    0xFF0000
 #define COLOR_ORANGE 0xFF7F00
@@ -56,7 +66,7 @@ bool     sPin4;
 
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
 
-// Arduino Setup (this function runs one time when the Arduino is either powered on or reset)
+// setup() - Arduino Setup (this function runs one time when the Arduino is either powered on or reset)
 
 void setup() {
 
@@ -70,19 +80,24 @@ void setup() {
   pinMode(SIGNAL3,    INPUT);
 
   // Configure the Neopixel
-  
+
   pixels.setBrightness(BRIGHTNESS);
   pixels.begin();
   pixels.show(); // Initializes all pixels to 'off'
 
   // Turn on the Arduino's lights so we know the Arduino is functional
-  
+
   digitalWrite(BUILTINLED, HIGH);
 
 }
 
 /*
  * setAPixel() - Set pixel command
+ *
+ * Note:  This is an overloaded function (look up function overloading).  You can call it with two
+ *        parameters (pixel number and color) or you can call it with three parameteres (pixel number,
+ *        color, and brightness).  If you call it with only two, the default value in the BRIGHTNESS
+ *        constant is used.
  */
 
 void setAPixel(uint16_t pixel, uint32_t color) {
@@ -90,34 +105,47 @@ void setAPixel(uint16_t pixel, uint32_t color) {
 }
 
 void setAPixel(uint16_t pixel, uint32_t color, uint8_t level) {
+  pixels.setBrightness(BRIGHTNESS);
   pixels.setPixelColor(pixel, color);
 }
 
-// Set a range of pixels
+// setPixelRange() - Set a range of pixels
 
 void setPixelRange(uint32_t color, uint8_t first, uint8_t last) {
   for (int pixel = first; pixel < last; pixel++)
-    setAPixel(pixel, color, BRIGHTNESS);
+    setAPixel(pixel, color);
 }
+
+// loop() - An infinite loop that the Arduino runs over and over again as fast as it can
 
 void loop() {
 
   // Read signal pins on the digital port
+  //
+  // NOTE:  Using boolean variables (sPin1 to sPin4) really are not needed in code this simple.
+  //        The reason for them is to make the if-elseif-else chain of if statements needed to
+  //        support 16 different states.
 
   sPin1 = digitalRead(SIGNAL0) == HIGH;
   sPin2 = digitalRead(SIGNAL1) == HIGH;
   sPin3 = digitalRead(SIGNAL2) == HIGH;
   sPin4 = digitalRead(SIGNAL3) == HIGH;
 
+  // This is where the seriese of if-elseif-else code goes to 'decode' the different combinations
+  // of the four pin states to pick the color programs.
+  //
+  // NOTE:  For this simple code, we simply run the color program directly.  In a more complex
+  //        program that has special effects what we should have are calls to functions where
+  //        each function is the desired effect.
 
-  
-  // put your main code here, to run repeatedly:
-  
   if (sPin1 && sPin2 && sPin3 && sPin4) {
     setPixelRange(COLOR_RED, 0, NUMPIXELS);
   } else {
-    setPixelRange(COLOR_GREEN, 0, NUMPIXELS);   
+    setPixelRange(COLOR_GREEN, 0, NUMPIXELS);
   }
-  pixels.show(); // Initializes all pixels to 'off'
 
-}
+  // Display the new pixel settings
+
+  pixels.show();
+
+} // loop()
