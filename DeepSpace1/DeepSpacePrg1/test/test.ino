@@ -9,7 +9,7 @@
  */
 
 #include <Adafruit_NeoPixel.h>
-
+//Test Commit by Sola
 // Implementation specific settings
 
 #define SIGNAL0        2  // Pin used for first (least significant) command bit
